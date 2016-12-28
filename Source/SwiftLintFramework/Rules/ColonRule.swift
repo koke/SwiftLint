@@ -47,6 +47,7 @@ public struct ColonRule: ASTRule, CorrectableRule, ConfigurationProviderRule {
             "let ↓abc:  Void\n",
             "let ↓abc :Void\n",
             "let ↓abc : Void\n",
+            "let ↓abc:Any\n",
             "let ↓abc : [Void: Void]\n",
             "let ↓abc : (Void, String, Int)\n",
             "let ↓abc : ([Void], String, Int)\n",
@@ -60,6 +61,8 @@ public struct ColonRule: ASTRule, CorrectableRule, ConfigurationProviderRule {
             "let ↓abc:Int=0\n",
             "let ↓abc:Int = 0\n",
             "let ↓abc:Enum=Enum.Value\n",
+            "let abc: [↓Void:Void]\n",
+            "let abc: [↓Void:Any]\n",
             "func abc(↓def:Void) {}\n",
             "func abc(↓def:  Void) {}\n",
             "func abc(↓def :Void) {}\n",
@@ -77,6 +80,7 @@ public struct ColonRule: ASTRule, CorrectableRule, ConfigurationProviderRule {
             "let ↓abc:  Void\n": "let abc: Void\n",
             "let ↓abc :Void\n": "let abc: Void\n",
             "let ↓abc : Void\n": "let abc: Void\n",
+            "let ↓abc:Any\n": "let abc: Any\n",
             "let ↓abc : [Void: Void]\n": "let abc: [Void: Void]\n",
             "let ↓abc : (Void, String, Int)\n": "let abc: (Void, String, Int)\n",
             "let ↓abc : ([Void], String, Int)\n": "let abc: ([Void], String, Int)\n",
@@ -90,6 +94,8 @@ public struct ColonRule: ASTRule, CorrectableRule, ConfigurationProviderRule {
             "let ↓abc:Int=0\n": "let abc: Int=0\n",
             "let ↓abc:Int = 0\n": "let abc: Int = 0\n",
             "let ↓abc:Enum=Enum.Value\n": "let abc: Enum=Enum.Value\n",
+            "let abc: [↓Void:Void]\n": "let abc: [Void: Void]\n",
+            "let abc: [↓Void:Any]\n": "let abc: [Void: Any]\n",
             "func abc(↓def:Void) {}\n": "func abc(def: Void) {}\n",
             "func abc(↓def:  Void) {}\n": "func abc(def: Void) {}\n",
             "func abc(↓def :Void) {}\n": "func abc(def: Void) {}\n",
@@ -199,8 +205,15 @@ extension ColonRule {
         let commentAndStringKindsSet = Set(SyntaxKind.commentAndStringKinds())
         return file.rangesAndTokensMatching(pattern).filter { _, syntaxTokens in
             let syntaxKinds = syntaxTokens.flatMap { SyntaxKind(rawValue: $0.type) }
-            if !syntaxKinds.starts(with: [.identifier, .typeidentifier]) {
-                return false
+                // let ↓abc:Void
+            guard syntaxKinds.starts(with: [.identifier, .typeidentifier])
+                // let ↓abc:Any
+                || syntaxKinds.starts(with: [.identifier, .keyword])
+                // let abc: [↓Void:Void]
+                || syntaxKinds.starts(with: [.typeidentifier, .typeidentifier])
+                // let abc: [↓Void:Any]
+                || syntaxKinds.starts(with: [.typeidentifier, .keyword]) else {
+                    return false
             }
             return Set(syntaxKinds).intersection(commentAndStringKindsSet).isEmpty
         }.flatMap { range, syntaxTokens in
